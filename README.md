@@ -10,6 +10,6 @@ Berikut adalah alur dari pengerjaan Project BI Intelligence BNSP:
 6. "Tabel Analisa" bisa digunakan sebagai dataset utama untuk mengerjakan Dashboard di dalam Power Bi
 
 Berikut Link lainnya:
-Google Collab:
-Power Bi:
-*Khusus BigQuery, pengerjaan nya ditampilkan di Github
+1. Google Collab: https://colab.research.google.com/drive/1xsPDlntVOSqLognlvtjo7YuCxtgPRwNa?usp=sharing
+2. Power Bi: https://drive.google.com/drive/folders/1i4dcXRIsSmpPoSrYrXBNQ62PATCaEfEh?usp=sharing
+3. *Khusus BigQuery, pengerjaan nya ditampilkan di Github
