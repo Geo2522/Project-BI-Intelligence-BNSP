@@ -1,0 +1,82 @@
+CREATE OR REPLACE TABLE `clean.Tabel_Analisa` AS
+WITH target AS (
+    SELECT 'North America' AS customer_region, 0.03 AS target_growth_qoq, 0.09 AS target_growth_yoy
+    UNION ALL
+    SELECT 'South America', 0.04, 0.16
+    UNION ALL
+    SELECT 'Europe', 0.02, 0.08
+),
+quarter_sales AS (
+    SELECT
+        customer_region,
+        order_year,
+        order_quarter,
+        SUM(net_sales) AS total_sales_quarter
+    FROM `clean.df_clean2`
+    GROUP BY customer_region, order_year, order_quarter
+),
+quarter_growth AS (
+    SELECT
+        customer_region,
+        order_year,
+        order_quarter,
+        total_sales_quarter,
+        LAG(total_sales_quarter) OVER (PARTITION BY customer_region ORDER BY order_year, order_quarter) AS prev_quarter_sales,
+        SAFE_DIVIDE(total_sales_quarter - LAG(total_sales_quarter) OVER (PARTITION BY customer_region ORDER BY order_year, order_quarter),
+                    LAG(total_sales_quarter) OVER (PARTITION BY customer_region ORDER BY order_year, order_quarter)) AS qoq_growth
+    FROM quarter_sales
+),
+year_sales AS (
+    SELECT
+        customer_region,
+        order_year,
+        SUM(net_sales) AS total_sales_year
+    FROM `clean.df_clean2`
+    GROUP BY customer_region, order_year
+),
+year_growth AS (
+    SELECT
+        customer_region,
+        order_year,
+        total_sales_year,
+        LAG(total_sales_year) OVER (PARTITION BY customer_region ORDER BY order_year) AS prev_year_sales,
+        SAFE_DIVIDE(total_sales_year - LAG(total_sales_year) OVER (PARTITION BY customer_region ORDER BY order_year),
+                    LAG(total_sales_year) OVER (PARTITION BY customer_region ORDER BY order_year)) AS yoy_growth
+    FROM year_sales
+),
+growth_results AS (
+    SELECT
+        q.customer_region,
+        q.order_year,
+        q.order_quarter,
+        q.total_sales_quarter,
+        q.qoq_growth,
+        y.total_sales_year,
+        y.yoy_growth,
+        t.target_growth_qoq,
+        t.target_growth_yoy,
+        CASE WHEN q.qoq_growth >= t.target_growth_qoq THEN 'Achieved' ELSE 'Not Achieved' END AS qoq_result,
+        CASE WHEN y.yoy_growth >= t.target_growth_yoy THEN 'Achieved' ELSE 'Not Achieved' END AS yoy_result
+    FROM quarter_growth q
+    LEFT JOIN year_growth y
+        ON q.customer_region = y.customer_region
+        AND q.order_year = y.order_year
+    LEFT JOIN target t
+        ON q.customer_region = t.customer_region
+)
+SELECT 
+    d.*,
+    g.total_sales_quarter,
+    g.qoq_growth,
+    g.total_sales_year,
+    g.yoy_growth,
+    g.target_growth_qoq,
+    g.target_growth_yoy,
+    g.qoq_result,
+    g.yoy_result
+FROM `clean.df_clean2` d
+LEFT JOIN growth_results g
+    ON d.customer_region = g.customer_region
+    AND d.order_year = g.order_year
+    AND d.order_quarter = g.order_quarter
+ORDER BY d.customer_region, d.order_year, d.order_quarter, d.pk_composite;
